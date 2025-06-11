@@ -23,7 +23,8 @@ import (
 )
 
 const (
-	localStorageConsumerConfigMapName = "storageconsumer-internal"
+	localStorageConsumerConfigMapName      = "storageconsumer-internal"
+	annotationNonResilientPoolsTopologyKey = "ocs.openshift.io/non-resilient-pools-topology-key"
 )
 
 var (
@@ -56,6 +57,13 @@ func (s *storageConsumer) ensureCreated(r *StorageClusterReconciler, storageClus
 	storageConsumer := &ocsv1a1.StorageConsumer{}
 	storageConsumer.Name = defaults.LocalStorageConsumerName
 	storageConsumer.Namespace = storageCluster.Namespace
+	if storageCluster.Spec.ManagedResources.CephNonResilientPools.Enable {
+		// add a annotation to the storageconsumer that has the topology key for non resilient pools
+		topologyKey := storageCluster.Status.FailureDomainKey
+		if topologyKey != "" {
+			util.AddAnnotation(storageConsumer, annotationNonResilientPoolsTopologyKey, topologyKey)
+		}
+	}
 	if _, err := controllerutil.CreateOrUpdate(r.ctx, r.Client, storageConsumer, func() error {
 		if err := controllerutil.SetControllerReference(storageCluster, storageConsumer, r.Scheme); err != nil {
 			return err
